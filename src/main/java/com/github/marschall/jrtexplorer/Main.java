@@ -15,15 +15,19 @@ public class Main {
     FileSystem fileSystem = FileSystems.getFileSystem(URI.create("jrt:/"));
     System.out.println("supported FileAttributeViews: " + fileSystem.supportedFileAttributeViews());
     System.out.println("file stores: " + fileSystem.getFileStores());
-    for (Path root : fileSystem.getRootDirectories()) {
-      iterate(root, 0);
-    }
+    Explorer.main(args);
+//    for (Path root : fileSystem.getRootDirectories()) {
+//      iterate(root, 0);
+//    }
     Path packages = fileSystem.getPath("/packages");
     Path modules = fileSystem.getPath("/modules");
     Path object = fileSystem.getPath("/java.base/java/lang/Object.class");
   }
 
   private static void iterate(Path parent, int level) throws IOException {
+    if (level > 2) {
+      return;
+    }
     try (DirectoryStream<Path> stream = Files.newDirectoryStream(parent)) {
       for (Path path : stream) {
         for (int i = 0; i < level; ++i) {
