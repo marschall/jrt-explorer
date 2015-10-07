@@ -21,7 +21,7 @@ public class PathTree extends JTree {
       return "/";
     }
     if (Files.isDirectory(path)) {
-      return '/' + fileName.toString();
+      return fileName.toString() + '/';
     } else {
       return fileName.toString();
     }
