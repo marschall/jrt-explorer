@@ -9,6 +9,7 @@ import java.nio.file.Path;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JTree;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -46,7 +47,9 @@ public class Explorer {
     JTree tree = new PathTree(new PathModel(root));
 //    tree.setRootVisible(false);
     tree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
-    panel.add(tree);
+    JScrollPane scrollPane = new JScrollPane(tree);
+
+    panel.add(scrollPane);
 
     return panel;
   }
