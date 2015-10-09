@@ -4,7 +4,10 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.swing.event.TreeModelListener;
@@ -15,11 +18,17 @@ public class PathModel implements TreeModel {
 
   private final List<TreeModelListener> listeners;
 
+  private final Map<Path, List<Path>> cache;
+
+  private final Map<Path, Boolean> leaves;
+
   private final Path root;
 
   public PathModel(Path root) {
     this.root = root;
     this.listeners = new CopyOnWriteArrayList<>();
+    this.cache = new HashMap<>();
+    this.leaves = new HashMap<>();
   }
 
   @Override
@@ -27,40 +36,55 @@ public class PathModel implements TreeModel {
     return this.root;
   }
 
-  @Override
-  public Object getChild(Object parent, int index) {
-    // TODO sort
-    // TODO cache?
-    int i = 0;
+  private void populateCache(Path parent) {
+    if (this.cache.containsKey(parent)) {
+      return;
+    }
+
+    List<Path> children = new ArrayList<>();
     try (DirectoryStream<Path> stream = Files.newDirectoryStream((Path) parent)) {
       for (Path each : stream) {
-        if (i == index) {
-          return each;
-        }
-        i += 1;
+        children.add(each);
+        this.leaves.put(each, !Files.isDirectory(each));
       }
     } catch (IOException e) {
       throw new RuntimeException("could not get children", e);
     }
-    throw new IllegalArgumentException("invalid index: " + index + " for: " + parent);
+
+    children.sort((a, b) -> {
+
+      boolean aIsDirectory = !this.leaves.get(a);
+      boolean bIsDirectory = !this.leaves.get(b);
+
+      if (aIsDirectory && !bIsDirectory) {
+        return -1;
+      }
+      if (bIsDirectory && !aIsDirectory) {
+
+      }
+
+      return a.compareTo(b);
+    });
+
+    this.cache.put(parent, children);
+  }
+
+  @Override
+  public Object getChild(Object parent, int index) {
+    this.populateCache((Path) parent);
+    return this.cache.get(parent).get(index);
   }
 
   @Override
   public int getChildCount(Object parent) {
-    int count = 0;
-    try (DirectoryStream<Path> stream = Files.newDirectoryStream((Path) parent)) {
-      for (Path each : stream) {
-        count += 1;
-      }
-    } catch (IOException e) {
-      throw new RuntimeException("could not get children", e);
-    }
-    return count;
+    this.populateCache((Path) parent);
+    return this.cache.get(parent).size();
   }
 
   @Override
   public boolean isLeaf(Object node) {
-    return !Files.isDirectory((Path) node);
+    return this.leaves.computeIfAbsent((Path) node,
+            path -> !Files.isDirectory(path));
   }
 
   @Override
@@ -70,20 +94,8 @@ public class PathModel implements TreeModel {
 
   @Override
   public int getIndexOfChild(Object parent, Object child) {
-    // TODO sort
-    // TODO cache?
-    int i = 0;
-    try (DirectoryStream<Path> stream = Files.newDirectoryStream((Path) parent)) {
-      for (Path each : stream) {
-        if (each.equals(child)) {
-          return i;
-        }
-        i += 1;
-      }
-    } catch (IOException e) {
-      throw new RuntimeException("could not get children", e);
-    }
-    throw new IllegalArgumentException("not a child: " + child + " of: " + parent);
+    this.populateCache((Path) parent);
+    return this.cache.get(parent).indexOf(child);
   }
 
   @Override
