@@ -1,6 +1,5 @@
 package com.github.marschall.jrtexplorer;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 import javax.swing.JTree;
@@ -20,10 +19,18 @@ public class PathTree extends JTree {
     if (fileName == null) {
       return "/";
     }
-    if (Files.isDirectory(path)) {
-      return fileName.toString() + '/';
+    if (leaf) {
+      // file
+      String fullFileName = fileName.toString();
+      if (fullFileName.endsWith(".class")) {
+        // .replace('/', '.')
+        return fullFileName.substring(0, fullFileName.length() - 6);
+      } else {
+        return fullFileName;
+      }
     } else {
-      return fileName.toString();
+      // directory
+      return fileName.toString() + '/';
     }
   }
 

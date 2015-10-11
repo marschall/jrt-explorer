@@ -44,6 +44,9 @@ public class PathModel implements TreeModel {
     List<Path> children = new ArrayList<>();
     try (DirectoryStream<Path> stream = Files.newDirectoryStream((Path) parent)) {
       for (Path each : stream) {
+        if (each.getFileName().toString().indexOf('$') != -1) {
+          continue;
+        }
         children.add(each);
         this.leaves.put(each, !Files.isDirectory(each));
       }
@@ -94,6 +97,7 @@ public class PathModel implements TreeModel {
 
   @Override
   public int getIndexOfChild(Object parent, Object child) {
+    // TODO reverse index? seems rarely used
     this.populateCache((Path) parent);
     return this.cache.get(parent).indexOf(child);
   }
