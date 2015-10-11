@@ -18,7 +18,6 @@ public class Main {
     FileSystem fileSystem = FileSystems.getFileSystem(URI.create("jrt:/"));
     System.out.println("supported FileAttributeViews: " + fileSystem.supportedFileAttributeViews());
     System.out.println("file stores: " + fileSystem.getFileStores());
-    Explorer.main(args);
 //    for (Path root : fileSystem.getRootDirectories()) {
 //      iterate(root, 0);
 //    }

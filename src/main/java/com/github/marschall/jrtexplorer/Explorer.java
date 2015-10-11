@@ -20,9 +20,11 @@ import javax.swing.UIManager;
 import javax.swing.tree.TreeSelectionModel;
 
 public class Explorer {
+
   private static final String NODE_NAME = "/com/github/marschall/jrtexplorer";
 
   public static void main(String[] args) {
+    System.setProperty("com.apple.mrj.application.apple.menu.about.name", "JRTExplorer");
     FileSystem fileSystem = FileSystems.getFileSystem(URI.create("jrt:/"));
     Path root = fileSystem.getPath("/");
     SwingUtilities.invokeLater(() -> createAndShowGUI(root));
