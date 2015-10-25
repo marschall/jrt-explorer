@@ -14,36 +14,37 @@ import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreePath;
 
-public class PathModel implements TreeModel {
+class PathModel implements TreeModel {
 
   private final List<TreeModelListener> listeners;
 
-  private final Map<Path, List<Path>> cache;
+  private final Map<TreeEntry, List<TreeEntry>> cache;
 
-  private final Map<Path, Boolean> leaves;
+  private final TreeEntry root;
 
   private final ModulePathData pathData;
 
-  public PathModel(ModulePathData pathData) {
+  PathModel(ModulePathData pathData) {
     this.pathData = pathData;
     this.listeners = new CopyOnWriteArrayList<>();
     this.cache = new HashMap<>();
-    this.leaves = new HashMap<>();
+    this.root = new TreeEntry(pathData.root, false);
   }
 
   @Override
   public Object getRoot() {
-    return this.pathData.root;
+    return this.root;
   }
 
-  private void populateCache(Path parent) {
-    if (this.cache.containsKey(parent)) {
+  private void populateCache(TreeEntry parent) {
+    Path parentPath = parent.getPath();
+    if (this.cache.containsKey(parentPath)) {
       return;
     }
-    boolean isModule = parent.startsWith(this.pathData.modules);
+    boolean isModule = parentPath.startsWith(this.pathData.modules);
 
-    List<Path> children = new ArrayList<>();
-    try (DirectoryStream<Path> stream = Files.newDirectoryStream((Path) parent)) {
+    List<TreeEntry> children = new ArrayList<>();
+    try (DirectoryStream<Path> stream = Files.newDirectoryStream(parentPath)) {
       for (Path each : stream) {
         if (each.getFileName().toString().indexOf('$') != -1) {
           continue;
@@ -60,8 +61,7 @@ public class PathModel implements TreeModel {
             }
           }
         }
-        children.add(each);
-        this.leaves.put(each, !isDirectory);
+        children.add(new TreeEntry(each, !isDirectory));
       }
     } catch (IOException e) {
       throw new RuntimeException("could not get children", e);
@@ -69,8 +69,8 @@ public class PathModel implements TreeModel {
 
     children.sort((a, b) -> {
 
-      boolean aIsDirectory = !this.leaves.get(a);
-      boolean bIsDirectory = !this.leaves.get(b);
+      boolean aIsDirectory = !a.isLeaf();
+      boolean bIsDirectory = !a.isLeaf();
 
       if (aIsDirectory && !bIsDirectory) {
         return -1;
@@ -79,7 +79,7 @@ public class PathModel implements TreeModel {
 
       }
 
-      return a.compareTo(b);
+      return a.getPath().compareTo(b.getPath());
     });
 
     this.cache.put(parent, children);
@@ -87,20 +87,19 @@ public class PathModel implements TreeModel {
 
   @Override
   public Object getChild(Object parent, int index) {
-    this.populateCache((Path) parent);
+    this.populateCache((TreeEntry) parent);
     return this.cache.get(parent).get(index);
   }
 
   @Override
   public int getChildCount(Object parent) {
-    this.populateCache((Path) parent);
+    this.populateCache((TreeEntry) parent);
     return this.cache.get(parent).size();
   }
 
   @Override
   public boolean isLeaf(Object node) {
-    return this.leaves.computeIfAbsent((Path) node,
-            path -> !Files.isDirectory(path));
+    return ((TreeEntry) node).isLeaf();
   }
 
   @Override
@@ -111,7 +110,7 @@ public class PathModel implements TreeModel {
   @Override
   public int getIndexOfChild(Object parent, Object child) {
     // TODO reverse index? seems rarely used
-    this.populateCache((Path) parent);
+    this.populateCache((TreeEntry) parent);
     return this.cache.get(parent).indexOf(child);
   }
 
