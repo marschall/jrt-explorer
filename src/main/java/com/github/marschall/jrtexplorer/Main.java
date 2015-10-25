@@ -1,6 +1,8 @@
 package com.github.marschall.jrtexplorer;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleDescriptor.Exports;
 import java.lang.module.ModuleFinder;
@@ -36,15 +38,14 @@ public class Main {
 //    printAttributes(fileSystem.getPath("/modules/java.base/java/lang/Object.class"));
 //    printAttributes(fileSystem.getPath("/modules/java.base"));
     Path moduleInfo = fileSystem.getPath("/modules/java.xml/module-info.class");
-    System.out.println(moduleInfo.getFileSystem().getPathMatcher("glob:a"));
-    for (ModuleReference reference : ModuleFinder.ofInstalled().findAll()) {
-      ModuleDescriptor descriptor = reference.descriptor();
-      Set<Path> exportedPaths = getExportedPaths(modules, descriptor);
-      System.out.println(descriptor.name() + ":");
-      for (Path exportedPath : exportedPaths) {
-        System.out.println("    " + exportedPath);
-      }
+
+    Path javaClass = fileSystem.getPath("/modules/java.base/java/lang/Object.class");
+
+    try (InputStream stream = new BufferedInputStream(Files.newInputStream(javaClass))) {
+      ClassParser parser = new ClassParser();
+      parser.parse(stream);
     }
+
     /*
     Files.list(modules).forEach(path -> {
       if (Files.isDirectory(path) && path.getFileName().toString().startsWith("java.")) {
