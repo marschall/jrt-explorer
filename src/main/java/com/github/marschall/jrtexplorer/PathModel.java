@@ -22,10 +22,10 @@ public class PathModel implements TreeModel {
 
   private final Map<Path, Boolean> leaves;
 
-  private final Path root;
+  private final ModulePathData pathData;
 
-  public PathModel(Path root) {
-    this.root = root;
+  public PathModel(ModulePathData pathData) {
+    this.pathData = pathData;
     this.listeners = new CopyOnWriteArrayList<>();
     this.cache = new HashMap<>();
     this.leaves = new HashMap<>();
@@ -33,13 +33,14 @@ public class PathModel implements TreeModel {
 
   @Override
   public Object getRoot() {
-    return this.root;
+    return this.pathData.root;
   }
 
   private void populateCache(Path parent) {
     if (this.cache.containsKey(parent)) {
       return;
     }
+    boolean isModule = parent.startsWith(this.pathData.modules);
 
     List<Path> children = new ArrayList<>();
     try (DirectoryStream<Path> stream = Files.newDirectoryStream((Path) parent)) {
@@ -47,8 +48,20 @@ public class PathModel implements TreeModel {
         if (each.getFileName().toString().indexOf('$') != -1) {
           continue;
         }
+        boolean isDirectory = Files.isDirectory(each);
+        if (isModule) {
+          if (isDirectory) {
+            if (!this.pathData.exportedPaths.contains(each)) {
+              continue;
+            }
+          } else {
+            if (!this.pathData.exportedPaths.contains(each.getParent())) {
+              continue;
+            }
+          }
+        }
         children.add(each);
-        this.leaves.put(each, !Files.isDirectory(each));
+        this.leaves.put(each, !isDirectory);
       }
     } catch (IOException e) {
       throw new RuntimeException("could not get children", e);

@@ -25,12 +25,11 @@ public class Explorer {
 
   public static void main(String[] args) {
     System.setProperty("com.apple.mrj.application.apple.menu.about.name", "JRTExplorer");
-    FileSystem fileSystem = FileSystems.getFileSystem(URI.create("jrt:/"));
-    Path root = fileSystem.getPath("/");
-    SwingUtilities.invokeLater(() -> createAndShowGUI(root));
+    ModulePathData pathData = ModulePathData.create();
+    SwingUtilities.invokeLater(() -> createAndShowGUI(pathData));
   }
 
-  private static void createAndShowGUI(Path root) {
+  private static void createAndShowGUI(ModulePathData pathData) {
     try {
       UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
     } catch (Exception e) {
@@ -47,7 +46,7 @@ public class Explorer {
 
     });
     frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-    frame.add(createMainPanel(root));
+    frame.add(createMainPanel(pathData));
     applyPreferences(frame);
 
     frame.setVisible(true);
@@ -81,12 +80,12 @@ public class Explorer {
     preferences.putBoolean("present", true);
   }
 
-  private static JPanel createMainPanel(Path root) {
+  private static JPanel createMainPanel(ModulePathData pathData) {
     JPanel panel = new JPanel(new GridLayout(1, 1));
 
     panel.setPreferredSize(new Dimension(400, 600));
 
-    JTree tree = new PathTree(new PathModel(root));
+    JTree tree = new PathTree(new PathModel(pathData));
 //    tree.setRootVisible(false);
     tree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
     JScrollPane scrollPane = new JScrollPane(tree);
