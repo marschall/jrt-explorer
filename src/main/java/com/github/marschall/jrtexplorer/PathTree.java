@@ -1,7 +1,5 @@
 package com.github.marschall.jrtexplorer;
 
-import java.nio.file.Path;
-
 import javax.swing.JTree;
 import javax.swing.tree.TreeModel;
 
