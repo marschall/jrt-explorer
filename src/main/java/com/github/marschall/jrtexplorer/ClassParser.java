@@ -43,21 +43,14 @@ class ClassParser {
         this.readMayor();
 
         int constantPoolCount = readConstantPoolCount();
-        System.out.println("constant pool count: " + constantPoolCount);
-        byte[][] constantPool = this.readConstantPool(constantPoolCount);
+        ConstantPool constantPool = this.readConstantPool(constantPoolCount);
 
         int accessFlags = this.readAccessFlags();
         System.out.println("public: " + this.isPublic(accessFlags));
         int thisClass = readThisClass();
-        System.out.println("class name: " + thisClass);
-
-        int i = 0;
-        for (byte[] utf8 : constantPool) {
-            if (utf8 != null) {
-                System.out.println("  " + i + ": " + new String(utf8, StandardCharsets.UTF_8));
-            }
-            i += 1;
-        }
+        int classNameIndex = constantPool.classNameIndices[thisClass - 1];
+        String className = new String(constantPool.strings[classNameIndex - 1], StandardCharsets.UTF_8);
+        System.out.println("class name: " + className.replace('/', '.'));
     }
 
     private void readMagic() throws IOException {
@@ -79,22 +72,30 @@ class ClassParser {
         return this.u2();
     }
 
-    private byte[][] readConstantPool(int constantPoolCount) throws IOException {
-        byte[][] constantPool = new byte[constantPoolCount - 1][];
+    private ConstantPool readConstantPool(int constantPoolCount) throws IOException {
+        ConstantPool constantPool = new ConstantPool(constantPoolCount);
         for (int i = 0; i < constantPoolCount - 1; ++i) {
             readConstantPoolEntry(i, constantPool);
         }
         return constantPool;
     }
 
-    private void readConstantPoolEntry(int index, byte[][] constantPool) throws IOException {
-        int tag = this.readConstantPoolTag();
-        if (index == 17 || index == 78) {
-            System.out.println("index: " + index + " tag: " + tag);
+    static final class ConstantPool {
+        final byte[][] strings;
+        final int[] classNameIndices;
+
+        ConstantPool(int constantPoolCount) {
+            this.strings = new byte[constantPoolCount - 1][];
+            this.classNameIndices = new int[constantPoolCount - 1];
         }
+    }
+
+    private void readConstantPoolEntry(int index, ConstantPool parsed) throws IOException {
+        int tag = this.readConstantPoolTag();
         switch (tag) {
             case CONSTANT_Class:
                 int nameIndex = this.u2();
+                parsed.classNameIndices[index] = nameIndex;
                 break;
             case CONSTANT_Fieldref:
                 int classIndex = this.u2();
@@ -133,17 +134,7 @@ class ClassParser {
                 int length = this.u2();
                 byte[] utf8 = new byte[length];
                 this.input.readFully(utf8, 0, length);
-                constantPool[index] = utf8;
-                if (index == 78) {
-                    System.out.println("index: " + index + " length: " + length);
-                    System.out.println("   " + new String(utf8, StandardCharsets.UTF_8));
-                }
-                /*
-                int terminator = this.u1();
-                if (terminator != 0) {
-                    throw new IllegalStateException("unexpected terminator: " + terminator + " at index: " + index);
-                }
-                */
+                parsed.strings[index] = utf8;
                 break;
             case CONSTANT_MethodHandle:
                 int referenceKind = this.u2();
@@ -157,10 +148,6 @@ class ClassParser {
                 int name_and_type_index = this.u2();
                 break;
             default:
-                if (tag == 0 && index == 0) {
-                    // skip
-                    return;
-                }
                 throw new IllegalStateException("unexpected tag: " + tag + " at index: " + index);
         }
     }
