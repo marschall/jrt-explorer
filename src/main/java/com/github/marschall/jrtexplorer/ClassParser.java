@@ -2,6 +2,7 @@ package com.github.marschall.jrtexplorer;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 
 class ClassParser {
     private final int CONSTANT_Class = 7;
@@ -35,7 +36,7 @@ class ClassParser {
         return this.input.readInt();
     }
 
-    void parse(InputStream stream) throws IOException {
+    ParseResult parse(InputStream stream, Path path) throws IOException {
         this.input = new DataInputStream(stream);
 
         this.readMagic();
@@ -43,14 +44,13 @@ class ClassParser {
         this.readMayor();
 
         int constantPoolCount = readConstantPoolCount();
-        ConstantPool constantPool = this.readConstantPool(constantPoolCount);
+        ConstantPool constantPool = this.readConstantPool(constantPoolCount, path);
 
         int accessFlags = this.readAccessFlags();
-        System.out.println("public: " + this.isPublic(accessFlags));
         int thisClass = readThisClass();
         int classNameIndex = constantPool.classNameIndices[thisClass - 1];
         String className = new String(constantPool.strings[classNameIndex - 1], StandardCharsets.UTF_8);
-        System.out.println("class name: " + className.replace('/', '.'));
+        return new ParseResult(className, this.isPublic(accessFlags));
     }
 
     private void readMagic() throws IOException {
@@ -72,10 +72,10 @@ class ClassParser {
         return this.u2();
     }
 
-    private ConstantPool readConstantPool(int constantPoolCount) throws IOException {
+    private ConstantPool readConstantPool(int constantPoolCount, Path path) throws IOException {
         ConstantPool constantPool = new ConstantPool(constantPoolCount);
         for (int i = 0; i < constantPoolCount - 1; ++i) {
-            readConstantPoolEntry(i, constantPool);
+            readConstantPoolEntry(i, constantPool, path);
         }
         return constantPool;
     }
@@ -90,7 +90,7 @@ class ClassParser {
         }
     }
 
-    private void readConstantPoolEntry(int index, ConstantPool parsed) throws IOException {
+    private void readConstantPoolEntry(int index, ConstantPool parsed, Path path) throws IOException {
         int tag = this.readConstantPoolTag();
         switch (tag) {
             case CONSTANT_Class:
@@ -148,7 +148,7 @@ class ClassParser {
                 int name_and_type_index = this.u2();
                 break;
             default:
-                throw new IllegalStateException("unexpected tag: " + tag + " at index: " + index);
+                throw new IllegalStateException("unexpected tag: " + tag + " at index: " + index + " for path: " + path);
         }
     }
 

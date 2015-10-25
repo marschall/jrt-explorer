@@ -36,11 +36,12 @@ public class Main {
 //    printAttributes(fileSystem.getPath("/modules/java.base"));
     Path moduleInfo = fileSystem.getPath("/modules/java.xml/module-info.class");
 
-    Path javaClass = fileSystem.getPath("/modules/java.base/java/lang/Object.class");
+    // Path javaClass = fileSystem.getPath("/modules/java.base/java/lang/Object.class");
+    Path javaClass = fileSystem.getPath("/modules/java.base/java/lang/AbstractMethodError.class");
 
     try (InputStream stream = new BufferedInputStream(Files.newInputStream(javaClass))) {
       ClassParser parser = new ClassParser();
-      parser.parse(stream);
+      parser.parse(stream, javaClass);
     }
 
     /*

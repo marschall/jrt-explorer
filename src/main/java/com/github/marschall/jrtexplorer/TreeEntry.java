@@ -13,6 +13,12 @@ class TreeEntry {
         this.leaf = leaf;
     }
 
+    TreeEntry(Path path, boolean leaf, String className) {
+        this.path = path;
+        this.leaf = leaf;
+        this.className = className;
+    }
+
     Path getPath() {
         return this.path;
     }

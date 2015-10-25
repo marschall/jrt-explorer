@@ -1,6 +1,8 @@
 package com.github.marschall.jrtexplorer;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,12 +25,14 @@ class PathModel implements TreeModel {
   private final TreeEntry root;
 
   private final ModulePathData pathData;
+  private final ClassParser classParser;
 
   PathModel(ModulePathData pathData) {
     this.pathData = pathData;
     this.listeners = new CopyOnWriteArrayList<>();
     this.cache = new HashMap<>();
     this.root = new TreeEntry(pathData.root, false);
+    this.classParser = new ClassParser();
   }
 
   @Override
@@ -44,8 +48,8 @@ class PathModel implements TreeModel {
     boolean isModule = parentPath.startsWith(this.pathData.modules);
 
     List<TreeEntry> children = new ArrayList<>();
-    try (DirectoryStream<Path> stream = Files.newDirectoryStream(parentPath)) {
-      for (Path each : stream) {
+    try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(parentPath)) {
+      for (Path each : directoryStream) {
         if (each.getFileName().toString().indexOf('$') != -1) {
           continue;
         }
@@ -59,6 +63,15 @@ class PathModel implements TreeModel {
             if (!this.pathData.exportedPaths.contains(each.getParent())) {
               continue;
             }
+            /*
+            try (InputStream stream = new BufferedInputStream(Files.newInputStream(each))) {
+              ParseResult result = this.classParser.parse(stream, each);
+              if (result.isPublic()) {
+                children.add(new TreeEntry(each, true, result.getClassName()));
+                continue;
+              }
+            }
+            */
           }
         }
         children.add(new TreeEntry(each, !isDirectory));
