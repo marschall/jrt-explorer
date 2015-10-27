@@ -4,19 +4,26 @@ import java.nio.file.Path;
 
 class TreeEntry {
 
+    private final TreeEntry parent;
     private final Path path;
     private final boolean leaf;
     private String className;
 
-    TreeEntry(Path path, boolean leaf) {
+    TreeEntry(TreeEntry parent, Path path, boolean leaf) {
+        this.parent = parent;
         this.path = path;
         this.leaf = leaf;
     }
 
-    TreeEntry(Path path, boolean leaf, String className) {
+    TreeEntry(TreeEntry parent, Path path, boolean leaf, String className) {
+        this.parent = parent;
         this.path = path;
         this.leaf = leaf;
         this.className = className;
+    }
+
+    TreeEntry getParent() {
+        return this.parent;
     }
 
     Path getPath() {

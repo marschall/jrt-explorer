@@ -34,14 +34,25 @@ public class Main {
     Path modules = fileSystem.getPath("/modules");
 //    printAttributes(fileSystem.getPath("/modules/java.base/java/lang/Object.class"));
 //    printAttributes(fileSystem.getPath("/modules/java.base"));
-    Path moduleInfo = fileSystem.getPath("/modules/java.xml/module-info.class");
+//    Path moduleInfo = fileSystem.getPath("/modules/java.xml/module-info.class");
 
     // Path javaClass = fileSystem.getPath("/modules/java.base/java/lang/Object.class");
     Path javaClass = fileSystem.getPath("/modules/java.base/java/lang/AbstractMethodError.class");
 
+    byte[] allBytes = Files.readAllBytes(javaClass);
+    /*
+    for (int i = 0; i < 11; ++i) {
+      System.out.println(i + ": " + allBytes[i]);
+    }
+    for (int i = 220; i < 300; ++i) {
+      System.out.println(i + ": " + allBytes[i]);
+    }
+    */
+
     try (InputStream stream = new BufferedInputStream(Files.newInputStream(javaClass))) {
       ClassParser parser = new ClassParser();
-      parser.parse(stream, javaClass);
+      ParseResult result = parser.parse(stream, javaClass);
+      System.out.println("class name: " + result.getClassName() + " public " + result.isPublic());
     }
 
     /*

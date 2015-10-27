@@ -10,8 +10,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreePath;
@@ -20,7 +23,7 @@ class PathModel implements TreeModel {
 
   private final List<TreeModelListener> listeners;
 
-  private final Map<TreeEntry, List<TreeEntry>> cache;
+  private final ConcurrentMap<TreeEntry, List<TreeEntry>> cache;
 
   private final TreeEntry root;
 
@@ -30,8 +33,8 @@ class PathModel implements TreeModel {
   PathModel(ModulePathData pathData) {
     this.pathData = pathData;
     this.listeners = new CopyOnWriteArrayList<>();
-    this.cache = new HashMap<>();
-    this.root = new TreeEntry(pathData.root, false);
+    this.cache = new ConcurrentHashMap<>();
+    this.root = new TreeEntry(null, pathData.root, false);
     this.classParser = new ClassParser();
   }
 
@@ -50,7 +53,8 @@ class PathModel implements TreeModel {
     List<TreeEntry> children = new ArrayList<>();
     try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(parentPath)) {
       for (Path each : directoryStream) {
-        if (each.getFileName().toString().indexOf('$') != -1) {
+        String fileName = each.getFileName().toString();
+        if (fileName.indexOf('$') != -1) {
           continue;
         }
         boolean isDirectory = Files.isDirectory(each);
@@ -64,17 +68,19 @@ class PathModel implements TreeModel {
               continue;
             }
             /*
-            try (InputStream stream = new BufferedInputStream(Files.newInputStream(each))) {
-              ParseResult result = this.classParser.parse(stream, each);
-              if (result.isPublic()) {
-                children.add(new TreeEntry(each, true, result.getClassName()));
+            */
+            if (fileName.endsWith(".class")) {
+              try (InputStream stream = new BufferedInputStream(Files.newInputStream(each))) {
+                ParseResult result = this.classParser.parse(stream, each);
+                if (result.isPublic()) {
+                  children.add(new TreeEntry(parent, each, true, result.getClassName()));
+                }
                 continue;
               }
             }
-            */
           }
         }
-        children.add(new TreeEntry(each, !isDirectory));
+        children.add(new TreeEntry(parent, each, !isDirectory));
       }
     } catch (IOException e) {
       throw new RuntimeException("could not get children", e);
@@ -95,7 +101,55 @@ class PathModel implements TreeModel {
       return a.getPath().compareTo(b.getPath());
     });
 
-    this.cache.put(parent, children);
+    List<TreeEntry> previous = this.cache.putIfAbsent(parent, children);
+    if (previous == null) {
+
+    }
+  }
+
+  private void insertChildren(TreeEntry parent, List<TreeEntry> childrenList) {
+    Object source = parent;
+    Object[] path = getPath(parent);
+    int[] childIndices = getIndices(childrenList);
+    Object[] children = childrenList.toArray(new Object[childrenList.size()]);
+    TreeModelEvent event = new TreeModelEvent(source, path, childIndices, children);
+    this.treeNodesInserted(event);
+  }
+
+  private static Object[] getPath(TreeEntry entry) {
+    int count = countParents(entry);
+    Object[] path = new Object[count];
+    int i = count;
+    TreeEntry current = entry.getParent();
+    while (current != null) {
+      path[--i] = current;
+      current = current.getParent();
+    }
+    return  path;
+  }
+
+  private void treeNodesInserted(TreeModelEvent event) {
+    for (TreeModelListener listener : this.listeners) {
+      listener.treeNodesInserted(event);
+    }
+  }
+
+  private static int countParents(TreeEntry node) {
+    int count = 0;
+    TreeEntry current = node.getParent();
+    while (current != null) {
+      current = current.getParent();
+    }
+    return count;
+  }
+
+  private static int[] getIndices(List<?> list) {
+    int size = list.size();
+    int[] indices = new int[size];
+    for (int i = 0; i < size; i++) {
+      indices[i] = i;
+    }
+    return indices;
   }
 
   @Override

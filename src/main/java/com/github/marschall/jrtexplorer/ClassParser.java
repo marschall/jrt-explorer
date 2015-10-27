@@ -3,6 +3,7 @@ package com.github.marschall.jrtexplorer;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Arrays;
 
 class ClassParser {
     private final int CONSTANT_Class = 7;
@@ -22,34 +23,89 @@ class ClassParser {
 
     private final int ACC_PUBLIC = 0x0001;
 
-    private DataInput input;
+    private InputStream input;
+    private int position;
 
     private int u1() throws IOException {
-        return this.input.readUnsignedByte();
+        int ch = this.input.read();
+        if (ch < 0) {
+            throw new EOFException();
+        }
+        this.position += 1;
+        return ch;
     }
 
     private int u2() throws IOException {
-        return this.input.readUnsignedShort();
+        int ch1 = this.input.read();
+        int ch2 = this.input.read();
+        if ((ch1 | ch2) < 0) {
+            throw new EOFException();
+        }
+        this.position += 2;
+        return (ch1 << 8) + (ch2 << 0);
     }
 
     private int u4() throws IOException {
-        return this.input.readInt();
+        int ch1 = this.input.read();
+        int ch2 = this.input.read();
+        int ch3 = this.input.read();
+        int ch4 = this.input.read();
+        if ((ch1 | ch2 | ch3 | ch4) < 0) {
+            throw new EOFException();
+        }
+        this.position += 4;
+        return ((ch1 << 24) + (ch2 << 16) + (ch3 << 8) + (ch4 << 0));
+    }
+    void readFully(byte b[], int off, int len) throws IOException {
+        if (len < 0)
+            throw new IndexOutOfBoundsException();
+        int n = 0;
+        while (n < len) {
+            int count = this.input.read(b, off + n, len - n);
+            if (count < 0)
+                throw new EOFException();
+            n += count;
+        }
+        this.position += len;
     }
 
     ParseResult parse(InputStream stream, Path path) throws IOException {
-        this.input = new DataInputStream(stream);
+        //this.input = new DataInputStream(stream);
+        this.input = stream;
+        this.position = 0;
 
         this.readMagic();
-        this.readMinor();
-        this.readMayor();
+        int minor = this.readMinor();
+        int major = this.readMayor();
+        //System.out.println(major + "." + minor);
 
         int constantPoolCount = readConstantPoolCount();
+        //System.out.println("constant pool count: " + constantPoolCount);
         ConstantPool constantPool = this.readConstantPool(constantPoolCount, path);
 
         int accessFlags = this.readAccessFlags();
         int thisClass = readThisClass();
-        int classNameIndex = constantPool.classNameIndices[thisClass - 1];
-        String className = new String(constantPool.strings[classNameIndex - 1], StandardCharsets.UTF_8);
+        /*
+        System.out.println("thisClass: " + thisClass);
+        System.out.println("strings: ");
+        int i = 0;
+        for (byte[] utf8 : constantPool.strings) {
+            if (utf8 != null) {
+                System.out.println(i + ": " + new String(utf8, StandardCharsets.UTF_8));
+            }
+            i += 1;
+        }
+        System.out.println("names: ");
+        i = 0;
+        for (int nameIndex : constantPool.classNameIndices) {
+            if (nameIndex != 0) {
+                System.out.println(i + ": " + nameIndex);
+            }
+            i += 1;
+        }
+        */
+        int classNameIndex = constantPool.classNameIndices[thisClass];
+        String className = new String(constantPool.strings[classNameIndex], StandardCharsets.UTF_8).replace('/', '.');
         return new ParseResult(className, this.isPublic(accessFlags));
     }
 
@@ -60,12 +116,12 @@ class ClassParser {
         }
     }
 
-    private void readMinor() throws IOException {
-        this.u2();
+    private int readMinor() throws IOException {
+        return this.u2();
     }
 
-    private void readMayor() throws IOException {
-        this.u2();
+    private int readMayor() throws IOException {
+        return this.u2();
     }
 
     private int readConstantPoolCount() throws IOException {
@@ -74,8 +130,8 @@ class ClassParser {
 
     private ConstantPool readConstantPool(int constantPoolCount, Path path) throws IOException {
         ConstantPool constantPool = new ConstantPool(constantPoolCount);
-        for (int i = 0; i < constantPoolCount - 1; ++i) {
-            readConstantPoolEntry(i, constantPool, path);
+        for (int i = 0; i < constantPoolCount - 1; ) {
+            i += readConstantPoolEntry(i, constantPool, path);
         }
         return constantPool;
     }
@@ -85,70 +141,98 @@ class ClassParser {
         final int[] classNameIndices;
 
         ConstantPool(int constantPoolCount) {
-            this.strings = new byte[constantPoolCount - 1][];
-            this.classNameIndices = new int[constantPoolCount - 1];
+            this.strings = new byte[constantPoolCount][];
+            this.classNameIndices = new int[constantPoolCount];
         }
     }
 
-    private void readConstantPoolEntry(int index, ConstantPool parsed, Path path) throws IOException {
+    private int readConstantPoolEntry(int index, ConstantPool parsed, Path path) throws IOException {
         int tag = this.readConstantPoolTag();
+        //System.out.println("index: " + index + " tag: " + tag + " at offset: " + (this.position - 1));
+        /*
+        if (index == 18) {
+            System.out.println("index: " + index + " tag: " + tag);
+        }
+        */
         switch (tag) {
             case CONSTANT_Class:
                 int nameIndex = this.u2();
-                parsed.classNameIndices[index] = nameIndex;
-                break;
+                parsed.classNameIndices[index + 1] = nameIndex;
+                return 1;
             case CONSTANT_Fieldref:
                 int classIndex = this.u2();
                 int nameAndTypeIndex = this.u2();
-                break;
+                return 1;
             case CONSTANT_Methodref:
                 classIndex = this.u2();
                 nameAndTypeIndex = this.u2();
-                break;
+                return 1;
             case CONSTANT_InterfaceMethodref:
                 classIndex = this.u2();
                 nameAndTypeIndex = this.u2();
-                break;
+                return 1;
             case CONSTANT_String:
                 int stringIndex = this.u2();
-                break;
+                return 1;
             case CONSTANT_Integer:
                 int bytes = this.u4();
-                break;
+                return 1;
             case CONSTANT_Float:
                 bytes = this.u4();
-                break;
+                return 1;
             case CONSTANT_Long:
                 int highBytes = this.u4();
                 int lowBytes = this.u4();
-                break;
+                return 2;
             case CONSTANT_Double:
                 highBytes = this.u4();
                 lowBytes = this.u4();
-                break;
+                return 2;
             case CONSTANT_NameAndType:
                 nameIndex = this.u2();
                 int descriptorIndex = this.u2();
-                break;
+                return 1;
             case CONSTANT_Utf8:
+                /*
+                if (index == 18) {
+                    System.out.println("index: " + index + " at offset: " + this.position);
+                }
+                */
                 int length = this.u2();
                 byte[] utf8 = new byte[length];
-                this.input.readFully(utf8, 0, length);
-                parsed.strings[index] = utf8;
-                break;
+                this.readFully(utf8, 0, length);
+                parsed.strings[index + 1] = utf8;
+                /*
+                if (index == 18) {
+                    System.out.println("index: " + index + " at offset: " + this.position + " length: " + length + " data " + new String(utf8, StandardCharsets.UTF_8));
+                    System.out.println(Arrays.toString(utf8));
+                }
+                */
+                /*
+                int terminator = this.u1();
+                if (terminator != 0) {
+                    throw new IllegalStateException("unexpected terminator: " + terminator+ " tag: " + tag + " at index: " + index + " for path: " + path);
+                }
+                */
+                return 1;
             case CONSTANT_MethodHandle:
-                int referenceKind = this.u2();
+                int referenceKind = this.u1();
                 int referenceIndex = this.u2();
-                break;
+                return 1;
             case CONSTANT_MethodType:
                 descriptorIndex = this.u2();
-                break;
+                return 1;
             case CONSTANT_InvokeDynamic:
                 int bootstrapMethodAttrIndex = this.u2();
                 int name_and_type_index = this.u2();
-                break;
+                return 1;
             default:
-                throw new IllegalStateException("unexpected tag: " + tag + " at index: " + index + " for path: " + path);
+                /*
+                if (tag == 0) {
+                    return;
+                }
+                */
+                throw new IllegalStateException("unexpected tag: " + tag + " at offset: " + this.position + " at index: " + index + " for path: " + path);
         }
     }
 
