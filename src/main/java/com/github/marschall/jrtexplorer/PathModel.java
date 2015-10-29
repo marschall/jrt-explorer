@@ -130,8 +130,14 @@ class PathModel implements TreeModel {
   }
 
   private ParseResult parse(Path path) {
-    try (InputStream stream = Files.newInputStream(path)) {
-      return this.classParser.parse(stream, path);
+    try {
+      return this.classParser.parse(() -> {
+        try {
+          return Files.newInputStream(path);
+        } catch (IOException e) {
+          throw new RuntimeException("could not parse: " + path, e);
+        }
+      }, path);
     } catch (IOException e) {
       throw new RuntimeException("could not parse: " + path, e);
     }

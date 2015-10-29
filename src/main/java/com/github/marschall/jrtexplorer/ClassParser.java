@@ -4,6 +4,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.function.Supplier;
 
 class ClassParser {
     private final int CONSTANT_Class = 7;
@@ -60,7 +61,8 @@ class ClassParser {
         this.position += 4;
         return (ch1 << 24) + (ch2 << 16) + (ch3 << 8) + (ch4 << 0);
     }
-    void readFully(byte b[], int off, int len) throws IOException {
+
+    private void readFully(byte b[], int off, int len) throws IOException {
         if (len < 0) {
             throw new IndexOutOfBoundsException();
         }
@@ -75,7 +77,18 @@ class ClassParser {
         this.position += len;
     }
 
-    ParseResult parse(InputStream stream, Path path) throws IOException {
+  private static void skipFully(InputStream in, long len) throws IOException {
+    long skipped = 0;
+    while (skipped != len) {
+      skipped += in.skip(len - skipped);
+    }
+  }
+
+    ParseResult parse(Supplier<InputStream> streamSupplier, Path path) throws IOException {
+      ConstantPool constantPool;
+      int accessFlags;
+      int thisClass;
+      try (InputStream stream = streamSupplier.get()) {
         this.input.setInputStream(stream);
         this.position = 0;
 
@@ -84,14 +97,36 @@ class ClassParser {
         int major = this.readMayor();
 
         int constantPoolCount = readConstantPoolCount();
-        ConstantPool constantPool = this.readConstantPool(constantPoolCount, path);
+        constantPool = this.readConstantPool(constantPoolCount, path);
 
-        int accessFlags = this.readAccessFlags();
-        int thisClass = readThisClass();
+        accessFlags = this.readAccessFlags();
+        thisClass = readThisClass();
+      }
+
         int classNameIndex = constantPool.classNameIndices[thisClass];
-        String className = new String(constantPool.strings[classNameIndex], StandardCharsets.UTF_8).replace('/', '.');
+      Utf8Info info = constantPool.strings[classNameIndex];
+        String className = readUtf8(info, streamSupplier);
         return new ParseResult(className, this.isPublic(accessFlags));
     }
+
+  private String readUtf8(Utf8Info info, Supplier<InputStream> streamSupplier) throws IOException {
+    int length = info.length;
+    byte[] buffer = new byte[length];
+    try (InputStream in = streamSupplier.get()) {
+      skipFully(in, info.position);
+      int read = in.read(buffer, 0, length);
+      while (read < length) {
+        read += in.read(buffer, read, length - read);
+      }
+    }
+    for (int i = 0; i < length; ++i) {
+      byte b = buffer[i];
+      if (b == '/') {
+        buffer[i] = '.';
+      }
+    }
+    return new String(buffer, StandardCharsets.UTF_8);
+  }
 
     private void readMagic() throws IOException {
         int magic = this.u4();
@@ -112,22 +147,28 @@ class ClassParser {
         return this.u2();
     }
 
+  private int readAccessFlags() throws IOException {
+    return this.u2();
+  }
+
+  private int readThisClass() throws IOException {
+    return this.u2();
+  }
+
+  private int readConstantPoolTag() throws IOException {
+    return this.u1();
+  }
+
+  private boolean isPublic(int accessFlags) {
+    return (accessFlags & ACC_PUBLIC) != 0;
+  }
+
     private ConstantPool readConstantPool(int constantPoolCount, Path path) throws IOException {
         ConstantPool constantPool = new ConstantPool(constantPoolCount);
         for (int i = 0; i < constantPoolCount - 1; ) {
             i += readConstantPoolEntry(i, constantPool, path);
         }
         return constantPool;
-    }
-
-    static final class ConstantPool {
-        final byte[][] strings;
-        final int[] classNameIndices;
-
-        ConstantPool(int constantPoolCount) {
-            this.strings = new byte[constantPoolCount][];
-            this.classNameIndices = new int[constantPoolCount];
-        }
     }
 
     private int readConstantPoolEntry(int index, ConstantPool parsed, Path path) throws IOException {
@@ -172,9 +213,14 @@ class ClassParser {
                 return 1;
             case CONSTANT_Utf8:
                 int length = this.u2();
+              /*
                 byte[] utf8 = new byte[length];
                 this.readFully(utf8, 0, length);
                 parsed.strings[index + 1] = utf8;
+                */
+              parsed.strings[index + 1] = new Utf8Info(this.position, length);
+              skipFully(this.input, length);
+              this.position += length;
                 return 1;
             case CONSTANT_MethodHandle:
                 int referenceKind = this.u1();
@@ -192,19 +238,24 @@ class ClassParser {
         }
     }
 
-    private int readAccessFlags() throws IOException {
-        return this.u2();
-    }
+  static final class Utf8Info {
 
-    private int readThisClass() throws IOException {
-        return this.u2();
-    }
+    final int position;
+    final int length;
 
-    private int readConstantPoolTag() throws IOException {
-        return this.u1();
+    Utf8Info(int position, int length) {
+      this.position = position;
+      this.length = length;
     }
+  }
 
-    private boolean isPublic(int accessFlags) {
-        return (accessFlags & ACC_PUBLIC) != 0;
+  static final class ConstantPool {
+    final Utf8Info[] strings;
+    final int[] classNameIndices;
+
+    ConstantPool(int constantPoolCount) {
+      this.strings = new Utf8Info[constantPoolCount];
+      this.classNameIndices = new int[constantPoolCount];
     }
+  }
 }

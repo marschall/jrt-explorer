@@ -39,6 +39,18 @@ class ReusableBufferedInputStream extends InputStream {
   }
 
   @Override
+  public long skip(long n) throws IOException {
+    int nInt = (int) Math.min(n, Integer.MAX_VALUE);
+    int available = this.available();
+    if (available == 0) {
+      return this.delegate.skip(n);
+    }
+    int actual = Math.min(nInt, this.available());
+    this.position += actual;
+    return actual;
+  }
+
+  @Override
   public int read() throws IOException {
     this.ensureBuffer();
     if (this.end == -1) {
@@ -54,7 +66,6 @@ class ReusableBufferedInputStream extends InputStream {
       return -1;
     }
     int actual = Math.min(this.available(), len);
-    //System.out.println("System.arraycopy(this.buffer: " + Arrays.toString(this.buffer) + ", this.position: " + this.position + ", b: " + Arrays.toString(b) + ", off: " + off + ", actual: " + actual + ")");
     System.arraycopy(this.buffer, this.position, b, off, actual);
     this.position += actual;
     return actual;
