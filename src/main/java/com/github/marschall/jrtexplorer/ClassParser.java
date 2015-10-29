@@ -54,16 +54,18 @@ class ClassParser {
             throw new EOFException();
         }
         this.position += 4;
-        return ((ch1 << 24) + (ch2 << 16) + (ch3 << 8) + (ch4 << 0));
+        return (ch1 << 24) + (ch2 << 16) + (ch3 << 8) + (ch4 << 0);
     }
     void readFully(byte b[], int off, int len) throws IOException {
-        if (len < 0)
+        if (len < 0) {
             throw new IndexOutOfBoundsException();
+        }
         int n = 0;
         while (n < len) {
             int count = this.input.read(b, off + n, len - n);
-            if (count < 0)
+            if (count < 0) {
                 throw new EOFException();
+            }
             n += count;
         }
         this.position += len;
@@ -77,7 +79,6 @@ class ClassParser {
         this.readMagic();
         int minor = this.readMinor();
         int major = this.readMayor();
-        //System.out.println(major + "." + minor);
 
         int constantPoolCount = readConstantPoolCount();
         //System.out.println("constant pool count: " + constantPoolCount);
@@ -85,25 +86,6 @@ class ClassParser {
 
         int accessFlags = this.readAccessFlags();
         int thisClass = readThisClass();
-        /*
-        System.out.println("thisClass: " + thisClass);
-        System.out.println("strings: ");
-        int i = 0;
-        for (byte[] utf8 : constantPool.strings) {
-            if (utf8 != null) {
-                System.out.println(i + ": " + new String(utf8, StandardCharsets.UTF_8));
-            }
-            i += 1;
-        }
-        System.out.println("names: ");
-        i = 0;
-        for (int nameIndex : constantPool.classNameIndices) {
-            if (nameIndex != 0) {
-                System.out.println(i + ": " + nameIndex);
-            }
-            i += 1;
-        }
-        */
         int classNameIndex = constantPool.classNameIndices[thisClass];
         String className = new String(constantPool.strings[classNameIndex], StandardCharsets.UTF_8).replace('/', '.');
         return new ParseResult(className, this.isPublic(accessFlags));
@@ -148,12 +130,6 @@ class ClassParser {
 
     private int readConstantPoolEntry(int index, ConstantPool parsed, Path path) throws IOException {
         int tag = this.readConstantPoolTag();
-        //System.out.println("index: " + index + " tag: " + tag + " at offset: " + (this.position - 1));
-        /*
-        if (index == 18) {
-            System.out.println("index: " + index + " tag: " + tag);
-        }
-        */
         switch (tag) {
             case CONSTANT_Class:
                 int nameIndex = this.u2();
@@ -193,27 +169,10 @@ class ClassParser {
                 int descriptorIndex = this.u2();
                 return 1;
             case CONSTANT_Utf8:
-                /*
-                if (index == 18) {
-                    System.out.println("index: " + index + " at offset: " + this.position);
-                }
-                */
                 int length = this.u2();
                 byte[] utf8 = new byte[length];
                 this.readFully(utf8, 0, length);
                 parsed.strings[index + 1] = utf8;
-                /*
-                if (index == 18) {
-                    System.out.println("index: " + index + " at offset: " + this.position + " length: " + length + " data " + new String(utf8, StandardCharsets.UTF_8));
-                    System.out.println(Arrays.toString(utf8));
-                }
-                */
-                /*
-                int terminator = this.u1();
-                if (terminator != 0) {
-                    throw new IllegalStateException("unexpected terminator: " + terminator+ " tag: " + tag + " at index: " + index + " for path: " + path);
-                }
-                */
                 return 1;
             case CONSTANT_MethodHandle:
                 int referenceKind = this.u1();
@@ -227,11 +186,6 @@ class ClassParser {
                 int name_and_type_index = this.u2();
                 return 1;
             default:
-                /*
-                if (tag == 0) {
-                    return;
-                }
-                */
                 throw new IllegalStateException("unexpected tag: " + tag + " at offset: " + this.position + " at index: " + index + " for path: " + path);
         }
     }
