@@ -6,14 +6,10 @@ import java.io.InputStream;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.*;
+import java.util.concurrent.*;
 
+import javax.swing.*;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreeModel;
@@ -22,13 +18,12 @@ import javax.swing.tree.TreePath;
 class PathModel implements TreeModel {
 
   private final List<TreeModelListener> listeners;
-
   private final ConcurrentMap<TreeEntry, List<TreeEntry>> cache;
-
   private final TreeEntry root;
-
   private final ModulePathData pathData;
   private final ClassParser classParser;
+  private final BlockingQueue<TreeEntry> toLoad;
+  private Thread preloader;
 
   PathModel(ModulePathData pathData) {
     this.pathData = pathData;
@@ -36,6 +31,7 @@ class PathModel implements TreeModel {
     this.cache = new ConcurrentHashMap<>();
     this.root = new TreeEntry(null, pathData.root, false);
     this.classParser = new ClassParser();
+    this.toLoad = new LinkedBlockingDeque<>();
   }
 
   @Override
@@ -43,7 +39,39 @@ class PathModel implements TreeModel {
     return this.root;
   }
 
-  private void populateCache(TreeEntry parent) {
+  void startPreloader() {
+    this.preloader = new Thread(this::preloadLoop, "node-preloader");
+    this.preloader.setDaemon(true);
+    this.preloader.start();
+  }
+
+  void stopPreloader() {
+    this.preloader.interrupt();
+    this.preloader = null;
+  }
+
+  void populateCache(TreeEntry parent) {
+    Path parentPath = parent.getPath();
+    if (this.cache.containsKey(parentPath)) {
+      return;
+    }
+    this.toLoad.offer(parent);
+  }
+
+  private void preloadLoop() {
+    while (true) {
+      TreeEntry entry;
+      try {
+        entry = this.toLoad.take();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return;
+      }
+      this.preload(entry);
+    }
+  }
+
+  private void preload(TreeEntry parent) {
     Path parentPath = parent.getPath();
     if (this.cache.containsKey(parentPath)) {
       return;
@@ -67,8 +95,6 @@ class PathModel implements TreeModel {
             if (!this.pathData.exportedPaths.contains(each.getParent())) {
               continue;
             }
-            /*
-            */
             if (fileName.endsWith(".class")) {
               try (InputStream stream = new BufferedInputStream(Files.newInputStream(each))) {
                 ParseResult result = this.classParser.parse(stream, each);
@@ -103,29 +129,39 @@ class PathModel implements TreeModel {
 
     List<TreeEntry> previous = this.cache.putIfAbsent(parent, children);
     if (previous == null) {
-
+      SwingUtilities.invokeLater(() -> insertChildren(parent, children));
     }
   }
 
   private void insertChildren(TreeEntry parent, List<TreeEntry> childrenList) {
     Object source = parent;
-    Object[] path = getPath(parent);
+    TreePath path = getPath(parent);
     int[] childIndices = getIndices(childrenList);
+    //System.out.println("child indices of: " + parent + " are: " + Arrays.toString(childIndices));
     Object[] children = childrenList.toArray(new Object[childrenList.size()]);
     TreeModelEvent event = new TreeModelEvent(source, path, childIndices, children);
     this.treeNodesInserted(event);
   }
 
-  private static Object[] getPath(TreeEntry entry) {
+  private static TreePath getPath(TreeEntry entry) {
     int count = countParents(entry);
+    /*
+    if (count == 0) {
+      System.out.println("no parents for " + entry);
+      return null;
+    }
+    */
     Object[] path = new Object[count];
     int i = count;
-    TreeEntry current = entry.getParent();
+    // FIXME
+    //TreeEntry current = entry.getParent();
+    TreeEntry current = entry;
     while (current != null) {
       path[--i] = current;
       current = current.getParent();
     }
-    return  path;
+    //System.out.println("path of: " + entry + " is: " + Arrays.toString(path));
+    return new TreePath(path);
   }
 
   private void treeNodesInserted(TreeModelEvent event) {
@@ -136,9 +172,12 @@ class PathModel implements TreeModel {
 
   private static int countParents(TreeEntry node) {
     int count = 0;
-    TreeEntry current = node.getParent();
+    // FIXME
+    // TreeEntry current = node.getParent();
+    TreeEntry current = node;
     while (current != null) {
       current = current.getParent();
+      count += 1;
     }
     return count;
   }
@@ -155,13 +194,24 @@ class PathModel implements TreeModel {
   @Override
   public Object getChild(Object parent, int index) {
     this.populateCache((TreeEntry) parent);
-    return this.cache.get(parent).get(index);
+    List<TreeEntry> children = this.cache.get(parent);
+    /*
+    if (index >= children.size()) {
+      System.out.println("accessing: " + index + " of: " + ((TreeEntry) parent).getPath());
+    }
+    */
+    return children.get(index);
   }
 
   @Override
   public int getChildCount(Object parent) {
     this.populateCache((TreeEntry) parent);
-    return this.cache.get(parent).size();
+    List<TreeEntry> children = this.cache.get(parent);
+    if (children != null) {
+      return children.size();
+    } else {
+      return 0;
+    }
   }
 
   @Override
@@ -177,18 +227,19 @@ class PathModel implements TreeModel {
   @Override
   public int getIndexOfChild(Object parent, Object child) {
     // TODO reverse index? seems rarely used
+    System.out.println("#getIndexOfChild");
     this.populateCache((TreeEntry) parent);
     return this.cache.get(parent).indexOf(child);
   }
 
   @Override
-  public void addTreeModelListener(TreeModelListener l) {
-    this.listeners.add(l);
+  public void addTreeModelListener(TreeModelListener listener) {
+    this.listeners.add(listener);
   }
 
   @Override
-  public void removeTreeModelListener(TreeModelListener l) {
-    this.listeners.remove(l);
+  public void removeTreeModelListener(TreeModelListener listener) {
+    this.listeners.remove(listener);
   }
 
 }

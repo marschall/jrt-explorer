@@ -60,4 +60,9 @@ class TreeEntry {
             return fileName.toString() + '/';
         }
     }
+
+    @Override
+    public String toString() {
+        return "TreeEntry(" + this.path + ")";
+    }
 }
