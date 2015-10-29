@@ -105,6 +105,16 @@ class PathModel implements TreeModel {
               }
             }
           }
+        } else {
+          if (fileName.endsWith(".class")) {
+            try (InputStream stream = new BufferedInputStream(Files.newInputStream(each))) {
+              ParseResult result = this.classParser.parse(stream, each);
+              if (result.isPublic()) {
+                children.add(new TreeEntry(parent, each, true, result.getClassName()));
+              }
+              continue;
+            }
+          }
         }
         children.add(new TreeEntry(parent, each, !isDirectory));
       }
@@ -115,13 +125,13 @@ class PathModel implements TreeModel {
     children.sort((a, b) -> {
 
       boolean aIsDirectory = !a.isLeaf();
-      boolean bIsDirectory = !a.isLeaf();
+      boolean bIsDirectory = !b.isLeaf();
 
       if (aIsDirectory && !bIsDirectory) {
         return -1;
       }
       if (bIsDirectory && !aIsDirectory) {
-
+        return 1;
       }
 
       return a.getPath().compareTo(b.getPath());
