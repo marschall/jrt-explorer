@@ -86,36 +86,20 @@ class PathModel implements TreeModel {
           continue;
         }
         boolean isDirectory = Files.isDirectory(each);
-        if (isModule) {
-          if (isDirectory) {
-            if (!this.pathData.exportedPaths.contains(each)) {
-              System.out.println("rejecting directory: " + each + " ("  + this.pathData.modules + ") " + parentPath + " link:" + Files.isSymbolicLink(each) + " " + each.toAbsolutePath());
-              continue;
-            }
-          } else {
-            if (!this.pathData.exportedPaths.contains(each.getParent())) {
-              System.out.println("rejecting file: " + each);
-              continue;
-            }
-            if (fileName.endsWith(".class")) {
-              try (InputStream stream = new BufferedInputStream(Files.newInputStream(each))) {
-                ParseResult result = this.classParser.parse(stream, each);
-                if (result.isPublic()) {
-                  children.add(new TreeEntry(parent, each, true, result.getClassName()));
-                }
-                continue;
-              }
-            }
+        if (isDirectory) {
+          if (isModule && !this.pathData.exportedPaths.contains(each)) {
+            continue;
           }
         } else {
-          if (!isDirectory && fileName.endsWith(".class")) {
-            try (InputStream stream = new BufferedInputStream(Files.newInputStream(each))) {
-              ParseResult result = this.classParser.parse(stream, each);
-              if (result.isPublic()) {
-                children.add(new TreeEntry(parent, each, true, result.getClassName()));
-              }
-              continue;
+          if (isModule && !this.pathData.exportedPaths.contains(each.getParent())) {
+            continue;
+          }
+          if (fileName.endsWith(".class")) {
+            ParseResult result = this.parse(each);
+            if (result.isPublic()) {
+              children.add(new TreeEntry(parent, each, true, result.getClassName()));
             }
+            continue;
           }
         }
         children.add(new TreeEntry(parent, each, !isDirectory));
@@ -142,6 +126,14 @@ class PathModel implements TreeModel {
     List<TreeEntry> previous = this.cache.putIfAbsent(parent, children);
     if (previous == null) {
       SwingUtilities.invokeLater(() -> insertChildren(parent, children));
+    }
+  }
+
+  private ParseResult parse(Path path) {
+    try (InputStream stream = new BufferedInputStream(Files.newInputStream(path))) {
+      return this.classParser.parse(stream, path);
+    } catch (IOException e) {
+      throw new RuntimeException("could not parse: " + path, e);
     }
   }
 
