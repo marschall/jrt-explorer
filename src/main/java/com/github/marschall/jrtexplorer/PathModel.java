@@ -72,10 +72,10 @@ class PathModel implements TreeModel {
   }
 
   private void preload(TreeEntry parent) {
-    Path parentPath = parent.getPath();
-    if (this.cache.containsKey(parentPath)) {
+    if (this.cache.containsKey(parent)) {
       return;
     }
+    Path parentPath = parent.getPath();
     boolean isModule = parentPath.startsWith(this.pathData.modules);
 
     List<TreeEntry> children = new ArrayList<>();
@@ -89,10 +89,12 @@ class PathModel implements TreeModel {
         if (isModule) {
           if (isDirectory) {
             if (!this.pathData.exportedPaths.contains(each)) {
+              System.out.println("rejecting directory: " + each + " ("  + this.pathData.modules + ") " + parentPath + " link:" + Files.isSymbolicLink(each) + " " + each.toAbsolutePath());
               continue;
             }
           } else {
             if (!this.pathData.exportedPaths.contains(each.getParent())) {
+              System.out.println("rejecting file: " + each);
               continue;
             }
             if (fileName.endsWith(".class")) {
@@ -106,7 +108,7 @@ class PathModel implements TreeModel {
             }
           }
         } else {
-          if (fileName.endsWith(".class")) {
+          if (!isDirectory && fileName.endsWith(".class")) {
             try (InputStream stream = new BufferedInputStream(Files.newInputStream(each))) {
               ParseResult result = this.classParser.parse(stream, each);
               if (result.isPublic()) {

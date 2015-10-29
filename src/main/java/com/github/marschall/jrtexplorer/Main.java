@@ -38,31 +38,16 @@ public class Main {
 
     // Path javaClass = fileSystem.getPath("/modules/java.base/java/lang/Object.class");
     Path javaClass = fileSystem.getPath("/modules/java.base/java/lang/AbstractMethodError.class");
-
-    byte[] allBytes = Files.readAllBytes(javaClass);
-    /*
-    for (int i = 0; i < 11; ++i) {
-      System.out.println(i + ": " + allBytes[i]);
-    }
-    for (int i = 220; i < 300; ++i) {
-      System.out.println(i + ": " + allBytes[i]);
-    }
-    */
-
-    try (InputStream stream = new BufferedInputStream(Files.newInputStream(javaClass))) {
-      ClassParser parser = new ClassParser();
-      ParseResult result = parser.parse(stream, javaClass);
-      System.out.println("class name: " + result.getClassName() + " public " + result.isPublic());
-    }
-
-    /*
-    Files.list(modules).forEach(path -> {
-      if (Files.isDirectory(path) && path.getFileName().toString().startsWith("java.")) {
-        checkModule(path);
-      }
-    });
-    */
 //    Files.copy(moduleInfo, Paths.get("module-info.class"));
+    //Path parent = fileSystem.getPath("/packages/com.apple.concurrent/jdk.deploy.osx/apple");
+    //Path parent = fileSystem.getPath("/packages/com.apple.concurrent/jdk.deploy.osx/com");
+    Path parent = fileSystem.getPath("/packages/com.oracle/java.xml.ws/com");
+    try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(parent)) {
+      for (Path each : directoryStream) {
+        System.out.println(" parent: " + parent + " child: " + each + " startsWith: " + each.startsWith(parent));
+      }
+    }
+
   }
 
   private static Set<Path> getExportedPaths(Path modules, ModuleDescriptor descriptor) {
