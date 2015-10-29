@@ -130,7 +130,7 @@ class PathModel implements TreeModel {
   }
 
   private ParseResult parse(Path path) {
-    try (InputStream stream = new BufferedInputStream(Files.newInputStream(path))) {
+    try (InputStream stream = Files.newInputStream(path)) {
       return this.classParser.parse(stream, path);
     } catch (IOException e) {
       throw new RuntimeException("could not parse: " + path, e);
@@ -141,7 +141,6 @@ class PathModel implements TreeModel {
     Object source = parent;
     TreePath path = getPath(parent);
     int[] childIndices = getIndices(childrenList);
-    //System.out.println("child indices of: " + parent + " are: " + Arrays.toString(childIndices));
     Object[] children = childrenList.toArray(new Object[childrenList.size()]);
     TreeModelEvent event = new TreeModelEvent(source, path, childIndices, children);
     this.treeNodesInserted(event);
@@ -149,12 +148,6 @@ class PathModel implements TreeModel {
 
   private static TreePath getPath(TreeEntry entry) {
     int count = countParents(entry);
-    /*
-    if (count == 0) {
-      System.out.println("no parents for " + entry);
-      return null;
-    }
-    */
     Object[] path = new Object[count];
     int i = count;
     // FIXME
@@ -164,7 +157,6 @@ class PathModel implements TreeModel {
       path[--i] = current;
       current = current.getParent();
     }
-    //System.out.println("path of: " + entry + " is: " + Arrays.toString(path));
     return new TreePath(path);
   }
 
@@ -199,11 +191,6 @@ class PathModel implements TreeModel {
   public Object getChild(Object parent, int index) {
     this.populateCache((TreeEntry) parent);
     List<TreeEntry> children = this.cache.get(parent);
-    /*
-    if (index >= children.size()) {
-      System.out.println("accessing: " + index + " of: " + ((TreeEntry) parent).getPath());
-    }
-    */
     return children.get(index);
   }
 

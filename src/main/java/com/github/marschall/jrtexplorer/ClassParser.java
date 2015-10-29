@@ -26,8 +26,6 @@ class ClassParser {
     private ReusableBufferedInputStream input;
     private int position;
 
-    /*
-    */
     ClassParser() {
         this.input = new ReusableBufferedInputStream();
     }
@@ -78,7 +76,6 @@ class ClassParser {
     }
 
     ParseResult parse(InputStream stream, Path path) throws IOException {
-        //this.input = stream;
         this.input.setInputStream(stream);
         this.position = 0;
 
