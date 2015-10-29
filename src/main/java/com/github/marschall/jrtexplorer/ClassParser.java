@@ -26,6 +26,12 @@ class ClassParser {
     private InputStream input;
     private int position;
 
+    /*
+    ClassParser() {
+        this.input = new ReusableBufferedInputStream();
+    }
+    */
+
     private int u1() throws IOException {
         int ch = this.input.read();
         if (ch < 0) {
@@ -72,8 +78,8 @@ class ClassParser {
     }
 
     ParseResult parse(InputStream stream, Path path) throws IOException {
-        //this.input = new DataInputStream(stream);
         this.input = stream;
+        //this.input.setInputStream(stream);
         this.position = 0;
 
         this.readMagic();
@@ -81,7 +87,6 @@ class ClassParser {
         int major = this.readMayor();
 
         int constantPoolCount = readConstantPoolCount();
-        //System.out.println("constant pool count: " + constantPoolCount);
         ConstantPool constantPool = this.readConstantPool(constantPoolCount, path);
 
         int accessFlags = this.readAccessFlags();
