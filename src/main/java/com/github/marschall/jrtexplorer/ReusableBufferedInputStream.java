@@ -1,9 +1,9 @@
 package com.github.marschall.jrtexplorer;
 
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 
 class ReusableBufferedInputStream extends InputStream {
 
@@ -31,26 +31,30 @@ class ReusableBufferedInputStream extends InputStream {
   }
 
   private void ensureBuffer() throws IOException {
-    if (this.end - this.position > 0) {
+    if (this.end == -1 || this.end - this.position > 0) {
       return;
     }
     this.position = 0;
     this.end = this.delegate.read(this.buffer, 0, this.buffer.length);
-    if (this.end == -1) {
-      throw new EOFException("no more data");
-    }
   }
 
   @Override
   public int read() throws IOException {
     this.ensureBuffer();
-    return this.buffer[this.position++];
+    if (this.end == -1) {
+      return -1;
+    }
+    return this.buffer[this.position++] & 0xFF;
   }
 
   @Override
   public int read(byte b[], int off, int len) throws IOException {
     this.ensureBuffer();
+    if (this.end == -1) {
+      return -1;
+    }
     int actual = Math.min(this.available(), len);
+    //System.out.println("System.arraycopy(this.buffer: " + Arrays.toString(this.buffer) + ", this.position: " + this.position + ", b: " + Arrays.toString(b) + ", off: " + off + ", actual: " + actual + ")");
     System.arraycopy(this.buffer, this.position, b, off, actual);
     this.position += actual;
     return actual;

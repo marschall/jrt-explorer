@@ -23,14 +23,14 @@ class ClassParser {
 
     private final int ACC_PUBLIC = 0x0001;
 
-    private InputStream input;
+    private ReusableBufferedInputStream input;
     private int position;
 
     /*
+    */
     ClassParser() {
         this.input = new ReusableBufferedInputStream();
     }
-    */
 
     private int u1() throws IOException {
         int ch = this.input.read();
@@ -78,8 +78,8 @@ class ClassParser {
     }
 
     ParseResult parse(InputStream stream, Path path) throws IOException {
-        this.input = stream;
-        //this.input.setInputStream(stream);
+        //this.input = stream;
+        this.input.setInputStream(stream);
         this.position = 0;
 
         this.readMagic();
