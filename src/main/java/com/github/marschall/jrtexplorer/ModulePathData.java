@@ -43,6 +43,9 @@ class ModulePathData {
         Path moduleBase = modules.resolve(descriptor.name());
         Set<ModuleDescriptor.Exports> exports = descriptor.exports();
         for (ModuleDescriptor.Exports export : exports) {
+            if (export.isQualified()) {
+                continue;
+            }
             String source = export.source();
             Path exportPath = moduleBase.resolve(source.replace('.', '/'));
             while (!exportPath.equals(modules)) {

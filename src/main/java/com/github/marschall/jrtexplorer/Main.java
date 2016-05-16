@@ -57,6 +57,9 @@ public class Main {
     Set<Path> exportedPaths = new HashSet<>();
     //System.out.println("exports: " + exports);
     for (Exports export : exports) {
+        if (export.isQualified()) {
+          continue;
+        }
         String source = export.source();
         //String[] elements = source.split("\\.");
         Path exportPath = moduleBase.resolve(source.replace('.', '/'));
