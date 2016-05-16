@@ -49,45 +49,6 @@ public class Main {
       }
     }
 
-    /*
-    ReusableBufferedInputStream stream = new ReusableBufferedInputStream(2);
-    stream.setInputStream(new ByteArrayInputStream(new byte[]{1, 2, 3}));
-    print2(stream, 4);
-    stream.setInputStream(new ByteArrayInputStream(new byte[]{4, 5, 6}));
-    print2(stream, 4);
-    */
-  }
-
-  private static void print2(InputStream stream, int bufferSize) throws IOException {
-    byte[] b = new byte[bufferSize];
-    boolean first = true;
-    int read = stream.read(b);
-    while (read != -1) {
-      // System.out.println("read: " + read + " " + Arrays.toString(b));
-      for (int i = 0; i < read; ++i) {
-        if (!first) {
-          System.out.print(", ");
-        }
-        System.out.print("0x" + Integer.toHexString(b[i]));
-        first = false;
-      }
-      read = stream.read(b);
-    }
-    System.out.println();
-  }
-
-  private static void print(InputStream stream) throws IOException {
-    int value = stream.read();
-    boolean first = true;
-    while (value != -1) {
-      if (!first) {
-        System.out.print(", ");
-      }
-      System.out.print("0x" + Integer.toHexString(value));
-      value = stream.read();
-      first = false;
-    }
-    System.out.println();
   }
 
   private static Set<Path> getExportedPaths(Path modules, ModuleDescriptor descriptor) {
@@ -96,9 +57,6 @@ public class Main {
     Set<Path> exportedPaths = new HashSet<>();
     //System.out.println("exports: " + exports);
     for (Exports export : exports) {
-      Optional<Set<String>> targets = export.targets();
-
-      if (!targets.isPresent()) {
         String source = export.source();
         //String[] elements = source.split("\\.");
         Path exportPath = moduleBase.resolve(source.replace('.', '/'));
@@ -106,8 +64,6 @@ public class Main {
           exportedPaths.add(exportPath);
           exportPath = exportPath.getParent();
         }
-
-      }
     }
     return exportedPaths;
   }

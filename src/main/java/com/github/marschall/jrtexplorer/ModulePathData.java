@@ -9,7 +9,6 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 
 class ModulePathData {
@@ -32,7 +31,8 @@ class ModulePathData {
         Path packages = fileSystem.getPath("/packages");
         Path modules = fileSystem.getPath("/modules");
         Set<Path> exportedPaths = new HashSet<>();
-        for (ModuleReference reference : ModuleFinder.ofInstalled().findAll()) {
+        //for (ModuleReference reference : ModuleFinder.ofInstalled().findAll()) {
+        for (ModuleReference reference : ModuleFinder.ofSystem().findAll()) {
             ModuleDescriptor descriptor = reference.descriptor();
             addExportedPaths(exportedPaths, modules, descriptor);
         }
@@ -43,16 +43,13 @@ class ModulePathData {
         Path moduleBase = modules.resolve(descriptor.name());
         Set<ModuleDescriptor.Exports> exports = descriptor.exports();
         for (ModuleDescriptor.Exports export : exports) {
-            Optional<Set<String>> targets = export.targets();
-            if (!targets.isPresent()) {
-                String source = export.source();
-                Path exportPath = moduleBase.resolve(source.replace('.', '/'));
-                while (!exportPath.equals(modules)) {
-                    exportedPaths.add(exportPath);
-                    exportPath = exportPath.getParent();
-                }
-
+            String source = export.source();
+            Path exportPath = moduleBase.resolve(source.replace('.', '/'));
+            while (!exportPath.equals(modules)) {
+                exportedPaths.add(exportPath);
+                exportPath = exportPath.getParent();
             }
+
         }
     }
 }

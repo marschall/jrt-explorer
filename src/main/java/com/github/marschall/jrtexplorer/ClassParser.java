@@ -22,7 +22,8 @@ class ClassParser {
     private final int CONSTANT_MethodType = 16;
     private final int CONSTANT_InvokeDynamic = 18;
 
-    private final int ACC_PUBLIC = 0x0001;
+    private static final int ACC_PUBLIC = 0x0001;
+    private static final int ACC_ANNOTATION = 0x2000;
 
     private ReusableBufferedInputStream input;
     private int position;
@@ -106,7 +107,7 @@ class ClassParser {
         int classNameIndex = constantPool.classNameIndices[thisClass];
       Utf8Info info = constantPool.strings[classNameIndex];
         String className = readUtf8(info, streamSupplier);
-        return new ParseResult(className, this.isPublic(accessFlags));
+        return new ParseResult(className, isPublic(accessFlags), isAnnotation(accessFlags));
     }
 
   private String readUtf8(Utf8Info info, Supplier<InputStream> streamSupplier) throws IOException {
@@ -159,8 +160,12 @@ class ClassParser {
     return this.u1();
   }
 
-  private boolean isPublic(int accessFlags) {
+  private static boolean isPublic(int accessFlags) {
     return (accessFlags & ACC_PUBLIC) != 0;
+  }
+
+  private static boolean isAnnotation(int accessFlags) {
+    return (accessFlags & ACC_ANNOTATION) != 0;
   }
 
     private ConstantPool readConstantPool(int constantPoolCount, Path path) throws IOException {

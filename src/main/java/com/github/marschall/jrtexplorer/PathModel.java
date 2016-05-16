@@ -157,7 +157,7 @@ class PathModel implements TreeModel {
     Object[] path = new Object[count];
     int i = count;
     // FIXME
-    //TreeEntry current = entry.getParent();
+    // TreeEntry current = entry.getParent();
     TreeEntry current = entry;
     while (current != null) {
       path[--i] = current;

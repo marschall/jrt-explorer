@@ -73,6 +73,7 @@
           </execution>
         </executions>
       </plugin>
+      <!--
       <plugin>
         <artifactId>maven-javadoc-plugin</artifactId>
         <configuration>
@@ -89,6 +90,7 @@
           </execution>
         </executions>
       </plugin>
+      -->
       <plugin>
         <artifactId>maven-release-plugin</artifactId>
         <configuration>

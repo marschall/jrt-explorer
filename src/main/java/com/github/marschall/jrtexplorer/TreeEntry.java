@@ -50,7 +50,6 @@ class TreeEntry {
             // file
             String fullFileName = fileName.toString();
             if (fullFileName.endsWith(".class")) {
-                // .replace('/', '.')
                 return fullFileName.substring(0, fullFileName.length() - 6);
             } else {
                 return fullFileName;
