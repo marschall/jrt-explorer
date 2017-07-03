@@ -238,6 +238,7 @@ class ClassParser {
                 int bootstrapMethodAttrIndex = this.u2();
                 int name_and_type_index = this.u2();
                 return 1;
+            // FIXME value 20 missing for module-info.java
             default:
                 throw new IllegalStateException("unexpected tag: " + tag + " at offset: " + this.position + " at index: " + index + " for path: " + path);
         }

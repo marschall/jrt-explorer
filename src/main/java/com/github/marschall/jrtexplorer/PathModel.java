@@ -94,7 +94,7 @@ class PathModel implements TreeModel {
           if (isModule && !this.pathData.exportedPaths.contains(each.getParent())) {
             continue;
           }
-          if (fileName.endsWith(".class")) {
+          if (fileName.endsWith(".class") && !fileName.equals("module-info.class")) {
             ParseResult result = this.parse(each);
             if (result.isPublic()) {
               children.add(new TreeEntry(parent, each, true, result.getClassName()));
