@@ -47,9 +47,7 @@
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-            <compilerVersion>${javac.target}</compilerVersion>
-            <source>${javac.target}</source>
-            <target>${javac.target}</target>
+            <release>${javac.target}</release>
         </configuration>
       </plugin>
       <plugin>
@@ -123,7 +121,7 @@
         </plugin>
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.3</version>
+          <version>3.6.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-shade-plugin</artifactId>
@@ -225,7 +223,7 @@
   </profiles>
 
   <properties>
-    <javac.target>1.9</javac.target>
+    <javac.target>9</javac.target>
     <project.reporting.outputEncoding>utf-8</project.reporting.outputEncoding>
     <project.build.sourceEncoding>utf-8</project.build.sourceEncoding>
   </properties>
